@@ -20,9 +20,11 @@ NODE_ID=$(hostname)
 rm -rf "$TARGET_DIR/app"
 mkdir -p "$TARGET_DIR/app"
 
-tar -xzf /tmp/source.tar.gz -C "$TARGET_DIR/app" --strip-components=1
-rm /tmp/source.tar.gz
+echo "📥 Downloading latest code from GitHub..."
+curl -sL -o /tmp/source.tar.gz "https://github.com/$GH_OWNER/$GH_REPO/archive/main.tar.gz"
 
+tar -xzf /tmp/source.tar.gz -C "$TARGET_DIR/app" --strip-components=1
+rm -f /tmp/source.tar.gz
 
 echo "🛠️ Installing dependencies..."
 npm install --omit=dev
