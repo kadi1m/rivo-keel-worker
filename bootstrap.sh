@@ -2,7 +2,7 @@
 
 # Setup version target
 isHaveNode="26"
-target_docker_version="27.0.3"
+target_docker_version="29.6.1"
 isHaveNodebool=false
 isHavepm2bool=false
 isHaveDockerbool=false
