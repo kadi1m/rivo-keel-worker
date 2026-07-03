@@ -1,12 +1,11 @@
-const WebSocket = require('ws');
-const { exec, spawn } = require('child_process');
 const os = require('os');
-const si = require('systeminformation');
+const fetch = require('node-fetch');
+const docker = new (require('dockerode'))();
+const WebSocket = require('ws');
 const fs = require('fs');
-const Docker = require('dockerode');
+const si = require('systeminformation');
 
-const docker = new Docker();
-
+// Load environment variables
 const CONTROL_PLANE_HOST = process.env.CONTROL_PLANE_HOST;
 const NODE_ID = os.hostname();
 
@@ -23,49 +22,75 @@ if (fs.existsSync(LOCK_FILE)) {
     try { fs.unlinkSync(LOCK_FILE); } catch (e) { }
 }
 
+ws.on('message', async (message) => {
+    try {
+        const data = JSON.parse(message);
+        
+        if (data.type === 'trigger-build') {
+            if (isProcessing) {
+                console.log(`[Worker] Ignoring build request: already processing a job.`);
+                return;
+            }
+            isProcessing = true;
+            fs.writeFileSync(LOCK_FILE, 'lock');
+            
+            console.log(`[Worker] Received build job. Starting processing...`);
+            
+            // TODO: Execute deployment process
+            
+            isProcessing = false;
+            try { fs.unlinkSync(LOCK_FILE); } catch (e) { }
+            console.log(`[Worker] Finished processing job.`);
+        }
+    } catch (err) {
+        console.error(`[Worker] Failed to process websocket message`, err.message);
+    }
+});
+
 async function collectStats() {
     try {
-        const [cpu, mem, fs, net, containers] = await Promise.all([
-            si.currentLoad(),
-            si.mem(),
-            si.fsSize(),
-            si.networkStats(),
-            docker.listContainers()
-        ]);
+        // Collect System CPU, Mem, Disk
+        const cpu = await si.currentLoad();
+        const mem = await si.mem();
+        const disk = await si.fsSize();
+        
+        const mainDisk = disk.find(d => d.mount === '/') || disk[0];
+        const diskPct = mainDisk ? mainDisk.use : 0;
 
-        const diskPct = fs.length > 0 ? fs[0].use : 0;
-        const netRx = net.length > 0 ? net[0].rx_bytes : 0;
-        const netTx = net.length > 0 ? net[0].tx_bytes : 0;
+        // Determine basic Network Rx/Tx
+        const net = await si.networkStats();
+        const mainNet = net[0];
+        const netRx = mainNet ? mainNet.rx_bytes : 0;
+        const netTx = mainNet ? mainNet.tx_bytes : 0;
 
-        let dockerStats = [];
+        // Collect Docker Stats
+        const containers = await docker.listContainers();
+        const dockerStats = [];
+        
         for (const container of containers) {
-            try {
-                const c = docker.getContainer(container.Id);
-                const stats = await c.stats({ stream: false });
-
-                let cpuPct = 0;
-                if (stats.cpu_stats && stats.precpu_stats) {
-                    const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
-                    const systemDelta = stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
-                    if (systemDelta > 0.0 && cpuDelta > 0.0) {
-                        cpuPct = (cpuDelta / systemDelta) * stats.cpu_stats.online_cpus * 100.0;
-                    }
-                }
+            const c = docker.getContainer(container.Id);
+            const stats = await c.stats({ stream: false });
+            
+            if (stats) {
+                const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
+                const systemCpuDelta = stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
+                const numCpus = stats.cpu_stats.online_cpus || 1;
+                const cpuUsage = (cpuDelta / systemCpuDelta) * numCpus * 100.0;
 
                 const memUsage = stats.memory_stats?.usage || 0;
                 const netRxContainer = Object.values(stats.networks || {}).reduce((acc, curr) => acc + curr.rx_bytes, 0);
                 const netTxContainer = Object.values(stats.networks || {}).reduce((acc, curr) => acc + curr.tx_bytes, 0);
 
                 dockerStats.push({
-                    id: container.Id.substring(0, 12),
+                    containerId: container.Id.substring(0, 12),
                     name: container.Names[0],
-                    cpu_pct: cpuPct,
-                    mem_usage: memUsage,
+                    image: container.Image,
+                    state: container.State,
+                    cpu: cpuUsage,
+                    mem: memUsage,
                     net_rx: netRxContainer,
                     net_tx: netTxContainer
                 });
-            } catch (err) {
-                // Ignore stats errors for individual containers
             }
         }
 
@@ -103,7 +128,7 @@ async function setupLogStreams() {
                     follow: true,
                     stdout: true,
                     stderr: true,
-                    since: Math.floor(Date.now() / 1000)
+                    tail: 10 // only grab last 10 lines to test initially
                 });
 
                 containerLogStreams[container.Id] = stream;
@@ -126,13 +151,14 @@ async function setupLogStreams() {
                             })
                         });
                     } catch (err) {
-                        // Silently ignore log forwarding errors to avoid spam
+                        console.error(`[Worker] Log forwarding failed:`, err.message);
                     }
                 });
 
                 stream.on('end', () => {
                     delete containerLogStreams[container.Id];
                 });
+
                 stream.on('error', () => {
                     delete containerLogStreams[container.Id];
                 });
