@@ -11,8 +11,8 @@ GH_OWNER="kadi1m"
 GH_REPO="rivo-keel-worker"
 TARGET_DIR="/opt/rivo-keel-worker"
 SERVICE_NAME="rivo-keel-worker"
-USERNAME="ubuntu"
-GROUP="ubuntu"
+USERNAME="kadin"
+GROUP="kadin"
 
 if [ -z "$1" ]; then
     echo "Usage: curl ... | sudo bash -s -- <CONTROL_PLANE_TOKEN>"
