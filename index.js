@@ -113,7 +113,9 @@ async function setupLogStreams() {
                     if (!logLine) return;
 
                     try {
-                        await fetch(`http://${CONTROL_PLANE_HOST}/worker/logs`, {
+                        const LOG_INGRESS_URL = process.env.LOG_INGRESS_URL || 'http://localhost:3001/logs';
+                        const targetUrl = LOG_INGRESS_URL.endsWith('/logs') ? LOG_INGRESS_URL : `${LOG_INGRESS_URL}/logs`;
+                        await fetch(targetUrl, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
