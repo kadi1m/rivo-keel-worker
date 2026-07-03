@@ -118,8 +118,8 @@ After=network.target
 
 [Service]
 Type=oneshot
-User=ubuntu
-Group=ubuntu
+User=$USERNAME
+Group=$GROUP
 WorkingDirectory=$TARGET_DIR
 ExecStart=/bin/bash $TARGET_DIR/deploy-worker.sh "$CP_TOKEN"
 KillMode=process
