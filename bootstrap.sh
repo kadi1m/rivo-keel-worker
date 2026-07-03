@@ -134,7 +134,7 @@ Description=Run worker auto-update interval timer
 
 [Timer]
 OnBootSec=1min
-OnUnitActiveSec=5min
+OnUnitActiveSec=10min
 Persistent=true
 
 [Install]

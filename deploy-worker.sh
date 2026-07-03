@@ -1,9 +1,8 @@
 GH_OWNER="kadi1m"
 GH_REPO="rivo-keel-worker"
-CONTROL_PLANE_URL="http://192.168.1.222:3001"
+CONTROL_PLANE_URL="http://192.168.1.222:3000"
+LOG_INGRESS_URL="http://192.168.1.222:3001"
 TARGET_DIR="/opt/rivo-keel-worker"
-
-
 if [ -f "/tmp/worker_processing.lock" ]; then
     echo "⚠️ Worker is currently processing a job. Skipping auto-update to avoid interrupting the build."
     exit 0
@@ -30,9 +29,9 @@ echo "🛠️ Installing dependencies..."
 npm install --omit=dev
 
 if npx pm2 describe worker-node &> /dev/null; then
-  CONTROL_PLANE_HOST="$CONTROL_PLANE_URL" npx pm2 restart worker-node --update-env
+  CONTROL_PLANE_HOST="$CONTROL_PLANE_URL" LOG_INGRESS_URL="$LOG_INGRESS_URL" npx pm2 restart worker-node --update-env
 else
-  CONTROL_PLANE_HOST="$CONTROL_PLANE_URL" npx pm2 start "$TARGET_DIR/app/index.js" \
+  CONTROL_PLANE_HOST="$CONTROL_PLANE_URL" LOG_INGRESS_URL="$LOG_INGRESS_URL" npx pm2 start "$TARGET_DIR/app/index.js" \
     --name worker-node \
     --env production
   npx pm2 save

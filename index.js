@@ -143,10 +143,10 @@ async function setupLogStreams() {
     }
 }
 
-// // Set up periodic tasks
-// setInterval(collectStats, 5000);
-// setInterval(setupLogStreams, 5000);
+// Set up periodic tasks
+setInterval(collectStats, 5000);
+setInterval(setupLogStreams, 5000);
 
-// // Initial run
-// collectStats();
-// setupLogStreams();
+// Initial run
+collectStats();
+setupLogStreams();
