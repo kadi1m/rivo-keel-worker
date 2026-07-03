@@ -9,5 +9,11 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "dependencies": {
+    "dockerode": "^5.0.1",
+    "node-fetch": "^3.3.2",
+    "systeminformation": "^5.31.11",
+    "ws": "^8.21.0"
+  }
 }

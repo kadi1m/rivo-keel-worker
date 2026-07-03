@@ -6,7 +6,10 @@ const fs = require('fs');
 const si = require('systeminformation');
 
 // Load environment variables
-const CONTROL_PLANE_HOST = process.env.CONTROL_PLANE_HOST;
+let CONTROL_PLANE_HOST = process.env.CONTROL_PLANE_HOST || '';
+if (CONTROL_PLANE_HOST.startsWith('http://')) {
+    CONTROL_PLANE_HOST = CONTROL_PLANE_HOST.replace('http://', '');
+}
 const NODE_ID = os.hostname();
 
 const ws = new WebSocket(`ws://${CONTROL_PLANE_HOST}/worker/ws`);
